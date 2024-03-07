@@ -9,13 +9,13 @@ import torch
 from unet import *
 from utils.dataset import BasicDataset
 from torch.utils.data import DataLoader
+
 dir_checkpoint = 'checkpoints/'
 
-
-inf_dir = './inf/'
+# inf_dir = './inf/'
 
 def predict_net(net_u,net_fc,device):
-
+    # 
     net_u.eval()
     net_fc.eval()
     val = BasicDataset(path_val,istrain = False)
@@ -26,15 +26,15 @@ def predict_net(net_u,net_fc,device):
     i = 0
     for batch in val_loader:
             imgs, true_masks = batch['image'], batch['target']
-            
+            #
             imgs = imgs.to(device=device, dtype=torch.float32)
             true_masks = true_masks.to(device=device, dtype=torch.float32)
-
+            #
             with torch.no_grad():
                 b1_pre = net_u(imgs)
                 x_mid = torch.cat([b1_pre, imgs], dim=1)
                 mask_pred = net_fc(x_mid)
-
+            #
             im_pred = mask_pred.cpu().detach().numpy()
             out[i*batch_size:(i+1)*batch_size,:,:,:] = im_pred
             i = i+1
@@ -55,7 +55,10 @@ def get_args():
                         help='Downscaling factor of the images')
     parser.add_argument('-v', '--validation', dest='val', type=float, default=10.0,
                         help='Percent of the data that is used as validation (0-100)')
-
+    parser.add_argument('-i', '--input', dest='input', type=str, default="/home/parent41/scratch/UKB/tmp_chisep/DLpreprocessing/",
+                    help='Directory for inputs')
+    parser.add_argument('-o', '--output', dest='output', type=str, default="/home/parent41/scratch/UKB/tmp_chisep/r2_r2star_mapping/",
+                    help='Directory for outputs')
     return parser.parse_args()
 
 
@@ -77,14 +80,15 @@ if __name__ == '__main__':
 
 
     try:
-        path = "./data/Data_to_gpu_t2map*.mat"
+        path = f"{args.input}Data_to_gpu_t2map*.mat"
+        print(path)
         file_list = glob.glob(path)
         print ("file_list_py: {}".format(file_list))
         for step,path_val in enumerate(file_list):
-            print(inf_dir+f'inference_r2_{path_val[-13:-4]}.mat')
+            print(args.output+f'inference_r2_{path_val[-13:-4]}.mat')
             img = predict_net(net_u=net_u,net_fc = net_fc,device=device)
             savedict = {'T2':np.squeeze(img[:,0,:,:])}
-            load = scipy.io.savemat(inf_dir+f'inference_r2_{path_val[-13:-4]}.mat',savedict)
+            load = scipy.io.savemat(args.output+f'inference_r2_{path_val[-13:-4]}.mat',savedict)
             logging.info('Inference saved')
 
     except KeyboardInterrupt:
@@ -93,3 +97,5 @@ if __name__ == '__main__':
             sys.exit(0)
         except SystemExit:
             os._exit(0)
+
+

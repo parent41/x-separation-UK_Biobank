@@ -10,9 +10,10 @@ from unet import *
 from utils.dataset_r2star import BasicDataset
 from torch.utils.data import DataLoader
 
+dir_checkpoint = 'checkpoints/'
 
 
-inf_dir = './inf/'
+# inf_dir = './inf/'
 
 def predict_net(net_u,net_fc,device):
 
@@ -55,7 +56,10 @@ def get_args():
                         help='Downscaling factor of the images')
     parser.add_argument('-v', '--validation', dest='val', type=float, default=10.0,
                         help='Percent of the data that is used as validation (0-100)')
-
+    parser.add_argument('-i', '--input', dest='input', type=str, default="./data/",
+                    help='Directory for inputs')
+    parser.add_argument('-o', '--output', dest='output', type=str, default="./inf/",
+                    help='Directory for outputs')
     return parser.parse_args()
 
 
@@ -69,22 +73,23 @@ if __name__ == '__main__':
     net_u = UNet(n_channels=2, n_classes=1, bilinear=True)
     net_fc = Fc(n_channels=3, n_classes=1)
 
-    net_u.load_state_dict(torch.load('./checkpoints/DS_Unet_prc_normal_10_23_21_12.pth', map_location=device))
-    net_fc.load_state_dict(torch.load('./checkpoints/DS_Fc_prc_normal_10_23_21_12.pth', map_location=device))
+    net_u.load_state_dict(torch.load(f'{dir_checkpoint}DS_Unet_prc_normal_10_23_21_12.pth', map_location=device))
+    net_fc.load_state_dict(torch.load(f'{dir_checkpoint}DS_Fc_prc_normal_10_23_21_12.pth', map_location=device))
 
     net_u.to(device=device)
     net_fc.to(device=device)
 
 
     try:
-        path = "./data/Data_to_gpu_t2starmap*.mat"
+        path = f"{args.input}Data_to_gpu_t2starmap*.mat"
+        print(path)
         file_list = glob.glob(path)
         print ("file_list_py: {}".format(file_list))
         for step, path_val in enumerate(file_list):
-            print(inf_dir+f'inference_r2star_{path_val[-13:-4]}.mat')
+            print(args.output+f'inference_r2star_{path_val[-13:-4]}.mat')
             img = predict_net(net_u=net_u,net_fc = net_fc,device=device)
             savedict = {'R2star':np.squeeze(img[:,0,:,:])}
-            load = scipy.io.savemat(inf_dir+f'inference_r2star_{path_val[-13:-4]}.mat',savedict)
+            load = scipy.io.savemat(args.output+f'inference_r2star_{path_val[-13:-4]}.mat',savedict)
             logging.info('Inference saved')
 
     except KeyboardInterrupt:
